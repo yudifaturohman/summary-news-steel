@@ -2,12 +2,18 @@
 
 Summary News Steel is a Python-based project that aims to automatically retrieve the latest news about the steel industry from various sources, then generate news summaries using AI to facilitate understanding and distribution of important information.
 
-## Fitur Utama
+## Main Feature
 
 - Automated Web Scraping: Retrieves the latest news from trusted websites in the steel industry.
 - AI Summary Generator: Uses AI technology to summarize news content accurately and concisely.
 - Structured Storage: Stores scraping and summary results into a database for better management.
 - Scheduled Automation: Support for scheduling scraping and summary on a regular basis (using cron job or task scheduler).
+- Map Reduce Chain: The Map Reduce Chain approach is a pragmatic solution for summarization. It's a two-step process that simplifies the task of summarizing a document.
+  
+  ![Unknown](https://github.com/user-attachments/assets/ef638ab2-849e-42da-a9da-a5260e8421f4)
+  ![Unknown-2](https://github.com/user-attachments/assets/47eef3f0-72f3-4bd6-9878-8d4313e4955d)
+
+  
 
 ## Tech Stack
 
