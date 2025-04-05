@@ -124,7 +124,7 @@ def send_unsent_summaries(conn, to_email, from_email, from_password):
 # === MAIN FUNCTION ===
 def main():
     conn = init_db()
-    docs = load_files("Berita/")
+    docs = load_files("News/")
 
     for doc in docs:
         filename = os.path.basename(doc.metadata["source"])
