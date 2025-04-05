@@ -1,21 +1,24 @@
 import os
+import time
 import textwrap
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import psycopg2
 from dotenv import load_dotenv
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import LLMChain, ReduceDocumentsChain, MapReduceDocumentsChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from langchain.prompts import PromptTemplate
-from langchain_community.document_loaders import DirectoryLoader, TextLoader
+from langchain_community.document_loaders import TextLoader
 from langchain_groq import ChatGroq
 
 # === Load ENV ===
 load_dotenv()
 
-# === SETUP LLM ===
+# === LLM SETUP ===
 llm = ChatGroq(
     model="llama-3.1-8b-instant",
     temperature=0,
@@ -23,7 +26,7 @@ llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-# === DATABASE CONNECTION ===
+# === DB SETUP ===
 def init_db():
     conn = psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
@@ -43,18 +46,11 @@ def init_db():
     conn.commit()
     return conn
 
-# === LOAD FILES FROM FOLDER ===
-def load_files(folder_path):
-    loader = DirectoryLoader(folder_path, glob="**/*.txt", loader_cls=TextLoader)
-    return loader.load()
-
-# === CEK SUDAH DIRINGKAS ===
 def is_already_summarized(conn, filename):
     c = conn.cursor()
     c.execute("SELECT 1 FROM summaries WHERE filename = %s", (filename,))
     return c.fetchone() is not None
 
-# === SIMPAN KE DB ===
 def save_summary_to_db(conn, filename, summary):
     c = conn.cursor()
     c.execute("""
@@ -73,7 +69,7 @@ def split_docs(documents, chunk_size=500, chunk_overlap=20):
     )
     return splitter.split_documents(documents)
 
-# === PROMPT & CHAIN ===
+# === SUMMARIZATION CHAIN ===
 map_prompt = PromptTemplate.from_template("""Write a concise summary of the following content:\n\n{text}\n\nSummary:""")
 reduce_prompt = PromptTemplate.from_template("""The Following is set of summaries:\n\n{doc_summaries}\n\nSummarize the above summaries with all the key details\n\nSummary:""")
 
@@ -100,7 +96,6 @@ def send_email(subject, body, to_email, from_email, from_password):
         server.login(from_email, from_password)
         server.send_message(msg)
 
-# === KIRIM EMAIL YANG BELUM TERKIRIM ===
 def send_unsent_summaries(conn, to_email, from_email, from_password):
     c = conn.cursor()
     c.execute("SELECT filename, summary FROM summaries WHERE is_sent = FALSE")
@@ -121,32 +116,58 @@ def send_unsent_summaries(conn, to_email, from_email, from_password):
         except Exception as e:
             print(f"❌ Gagal kirim email untuk {filename}: {e}")
 
-# === MAIN FUNCTION ===
+# === WATCHDOG HANDLER ===
+class NewFileHandler(FileSystemEventHandler):
+    def __init__(self, conn, folder_path):
+        self.conn = conn
+        self.folder_path = folder_path
+
+    def on_created(self, event):
+        if event.is_directory or not event.src_path.endswith(".txt"):
+            return
+
+        time.sleep(1)  # delay sebentar biar file selesai disalin
+        filename = os.path.basename(event.src_path)
+
+        if is_already_summarized(self.conn, filename):
+            print(f"✅ Sudah diringkas sebelumnya: {filename}")
+            return
+
+        print(f"📥 File baru terdeteksi: {filename}")
+        loader = TextLoader(event.src_path, autodetect_encoding=True)
+        documents = loader.load()
+        docs = split_docs(documents)
+
+        print(f"🧠 Merangkum {filename}...")
+        summary = map_reduce_chain.run(docs)
+        save_summary_to_db(self.conn, filename, summary)
+
+        print(f"✅ Summary selesai: {filename}")
+        send_unsent_summaries(
+            self.conn,
+            to_email=os.getenv("EMAIL_RECEIVER"),
+            from_email=os.getenv("EMAIL_SENDER"),
+            from_password=os.getenv("EMAIL_PASSWORD")
+        )
+
+# === MAIN ===
 def main():
+    folder_path = "News"
     conn = init_db()
-    docs = load_files("News/")
 
-    for doc in docs:
-        filename = os.path.basename(doc.metadata["source"])
-        if is_already_summarized(conn, filename):
-            print(f"✅ Sudah diringkas: {filename}")
-            continue
+    event_handler = NewFileHandler(conn, folder_path)
+    observer = Observer()
+    observer.schedule(event_handler, folder_path, recursive=False)
+    observer.start()
+    print("👀 Menunggu file baru di folder 'News/'...")
 
-        print(f"🔄 Merangkum: {filename}")
-        split = split_docs([doc])
-        summary = map_reduce_chain.run(split)
-
-        save_summary_to_db(conn, filename, summary)
-        print(f"📝 Summary:\n{textwrap.fill(summary, width=100)}\n")
-
-    # Kirim email untuk summary yang belum dikirim
-    send_unsent_summaries(
-        conn,
-        to_email=os.getenv("EMAIL_RECEIVER"),
-        from_email=os.getenv("EMAIL_SENDER"),
-        from_password=os.getenv("EMAIL_PASSWORD")
-    )
-
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+        print("\n🛑 Dihentikan oleh pengguna.")
+    observer.join()
     conn.close()
 
 if __name__ == "__main__":
