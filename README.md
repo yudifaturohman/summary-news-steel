@@ -1,13 +1,13 @@
 # Summary News Steel
 
-Summary News Steel adalah proyek berbasis Python yang bertujuan untuk mengambil berita-berita terbaru seputar industri baja (steel) dari berbagai sumber secara otomatis, lalu menghasilkan ringkasan berita menggunakan AI untuk mempermudah pemahaman dan distribusi informasi penting.
+Summary News Steel is a Python-based project that aims to automatically retrieve the latest news about the steel industry from various sources, then generate news summaries using AI to facilitate understanding and distribution of important information.
 
 ## Fitur Utama
 
-- Web Scraping Otomatis: Mengambil berita terbaru dari situs-situs terpercaya di bidang industri baja.
-- AI Summary Generator: Menggunakan teknologi AI untuk meringkas konten berita secara akurat dan ringkas.
-- Penyimpanan Terstruktur: Menyimpan hasil scraping dan ringkasan ke dalam database untuk pengelolaan yang lebih baik.
-- Scheduled Automation: Dukungan untuk penjadwalan scraping dan summary secara berkala (menggunakan cron job atau task scheduler).
+- Automated Web Scraping: Retrieves the latest news from trusted websites in the steel industry.
+- AI Summary Generator: Uses AI technology to summarize news content accurately and concisely.
+- Structured Storage: Stores scraping and summary results into a database for better management.
+- Scheduled Automation: Support for scheduling scraping and summary on a regular basis (using cron job or task scheduler).
 
 ## Tech Stack
 
@@ -44,6 +44,7 @@ Summary News Steel adalah proyek berbasis Python yang bertujuan untuk mengambil 
    venv\Scripts\activate.bat
    ```
    or
+   
    ```sh
    venv\Scripts\Activate.ps1
    ```
