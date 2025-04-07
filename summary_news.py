@@ -2,6 +2,7 @@ import os
 import time
 import textwrap
 import smtplib
+import markdown
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import psycopg2
@@ -86,11 +87,13 @@ map_reduce_chain = MapReduceDocumentsChain(
 
 # === EMAIL ===
 def send_email(subject, body, to_email, from_email, from_password):
+    body_html = markdown.markdown(body)
+
     msg = MIMEMultipart()
     msg["From"] = from_email
     msg["To"] = to_email
     msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(body_html, "html"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(from_email, from_password)
